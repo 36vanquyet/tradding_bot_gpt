@@ -30,13 +30,30 @@ def main() -> None:
 
     store = SQLiteStateStore(settings.db_path)
     initial_state = BotState(
+        bot_running=True,
+        auto_trading=False,
         mode="paper" if settings.dry_run else "live",
         exchange=settings.default_exchange,
+        language="vi",
         symbols=settings.default_symbols,
+        default_bot_running=True,
+        default_auto_trading=False,
+        default_mode="paper" if settings.dry_run else "live",
+        default_exchange=settings.default_exchange,
+        default_language="vi",
+        default_symbols=settings.default_symbols,
         balance_quote=settings.paper_start_balance,
     )
     state = store.load_state(initial_state)
     control = ControlService(state, store)
+    logger.info(
+        "Runtime state ready db=%s mode=%s exchange=%s language=%s symbols=%s",
+        settings.db_path,
+        state.mode,
+        state.exchange,
+        state.language,
+        state.symbols,
+    )
     exchange = build_exchange(settings, state.mode, state.exchange)
     strategy = MovingAverageCrossStrategy(settings.fast_ma, settings.slow_ma)
     risk = FixedFractionalRisk(settings.risk_per_trade)

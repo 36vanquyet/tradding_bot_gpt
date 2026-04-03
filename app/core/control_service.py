@@ -37,6 +37,17 @@ class ControlService:
                 "last_error": self.state.last_error,
             }
 
+    def get_runtime_config(self) -> Dict[str, object]:
+        with self._lock:
+            return {
+                "bot_running": self.state.bot_running,
+                "auto_trading": self.state.auto_trading,
+                "mode": self.state.mode,
+                "exchange": self.state.exchange,
+                "language": self.state.language,
+                "symbols": list(self.state.symbols),
+            }
+
     def pause_bot(self) -> None:
         with self._lock:
             self.state.bot_running = False
@@ -111,4 +122,14 @@ class ControlService:
     def set_error(self, message: str) -> None:
         with self._lock:
             self.state.last_error = message
+            self.persist()
+
+    def reset_runtime_config(self) -> None:
+        with self._lock:
+            self.state.bot_running = self.state.default_bot_running
+            self.state.auto_trading = self.state.default_auto_trading
+            self.state.mode = self.state.default_mode
+            self.state.exchange = self.state.default_exchange
+            self.state.language = self.state.default_language
+            self.state.symbols = list(self.state.default_symbols)
             self.persist()

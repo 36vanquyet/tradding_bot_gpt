@@ -55,6 +55,12 @@ class BotState:
     exchange: str = "binance"
     language: str = "vi"
     symbols: List[str] = field(default_factory=lambda: ["BTC/USDT"])
+    default_bot_running: bool = True
+    default_auto_trading: bool = False
+    default_mode: str = "paper"
+    default_exchange: str = "binance"
+    default_language: str = "vi"
+    default_symbols: List[str] = field(default_factory=lambda: ["BTC/USDT"])
     balance_quote: float = 10000.0
     daily_pnl: float = 0.0
     open_positions: Dict[str, Position] = field(default_factory=dict)

@@ -2,9 +2,20 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from pathlib import Path
 from typing import List
 
 from dotenv import load_dotenv
+
+
+BASE_DIR = Path(__file__).resolve().parents[2]
+
+
+def _resolve_path(path_value: str) -> str:
+    path = Path(path_value)
+    if path.is_absolute() or path_value == ":memory:":
+        return str(path)
+    return str((BASE_DIR / path).resolve())
 
 
 def _get_bool(name: str, default: bool) -> bool:
@@ -64,10 +75,10 @@ class Settings:
 
 
 def load_settings() -> Settings:
-    load_dotenv()
+    load_dotenv(BASE_DIR / ".env")
     return Settings(
         app_env=os.getenv("APP_ENV", "dev"),
-        db_path=os.getenv("DB_PATH", "bot_state.db"),
+        db_path=_resolve_path(os.getenv("DB_PATH", "bot_state.db")),
         log_level=os.getenv("LOG_LEVEL", "INFO"),
         dry_run=_get_bool("DRY_RUN", True),
         default_exchange=os.getenv("DEFAULT_EXCHANGE", "binance").lower(),

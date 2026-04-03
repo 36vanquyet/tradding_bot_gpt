@@ -1,14 +1,20 @@
 # Docs
 
-Thư mục này lưu tài liệu nội bộ của dự án.
+Thư mục này lưu tài liệu kỹ thuật và vận hành của dự án.
 
 ## Nội dung hiện có
 
-- `chatbot-features.md`: mô tả tính năng, command và hành vi của chatbot Telegram
+- `chatbot-features.md`: mô tả command, inline keyboard và hành vi của chatbot Telegram
 - `release-notes/`: ghi chú thay đổi theo phiên bản
 
-## Gợi ý mở rộng
+## Cách đọc nhanh
 
-- `runbooks/`: hướng dẫn vận hành, xử lý sự cố
+- Nếu bạn muốn chạy bot: bắt đầu từ [`README.md`](../README.md)
+- Nếu bạn muốn hiểu phần Telegram: đọc `chatbot-features.md`
+- Nếu bạn muốn xem thay đổi theo phiên bản: đọc `release-notes/v5.0.0.md`
+
+## Hướng mở rộng tài liệu
+
+- `runbooks/`: hướng dẫn vận hành và xử lý sự cố
 - `architecture/`: mô tả kiến trúc và luồng dữ liệu
 - `deployment/`: hướng dẫn triển khai server, reverse proxy, giám sát

@@ -10,6 +10,7 @@ from app.telegram.handlers import (
     help_cmd,
     language_cmd,
     rem_symbol_cmd,
+    reset_config_cmd,
     start_cmd,
     status_cmd,
     symbols_cmd,
@@ -37,6 +38,7 @@ def build_telegram_app(
     app.add_handler(CommandHandler("help", help_cmd))
     app.add_handler(CommandHandler("language", language_cmd))
     app.add_handler(CommandHandler("lang", language_cmd))
+    app.add_handler(CommandHandler("resetconfig", reset_config_cmd))
     app.add_handler(CommandHandler("status", status_cmd))
     app.add_handler(CommandHandler("health", health_cmd))
     app.add_handler(CommandHandler("symbols", symbols_cmd))

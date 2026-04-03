@@ -7,7 +7,7 @@ SUPPORTED_LANGUAGES = {"vi", "en"}
 MESSAGES = {
     "vi": {
         "unauthorized": "Bạn không có quyền sử dụng bot này.",
-        "start": "Trading bot v4 đã sẵn sàng.\nDùng /help để xem hướng dẫn đầy đủ và các lệnh hỗ trợ.",
+        "start": "Trading bot v5 đã sẵn sàng.\nDùng /help để xem hướng dẫn đầy đủ và các lệnh hỗ trợ.",
         "help": (
             "<b>Hướng dẫn sử dụng</b>\n"
             "/start - Mở bot và hiện keyboard thao tác nhanh\n"
@@ -18,13 +18,14 @@ MESSAGES = {
             "/exchange &lt;paper|binance|bybit|mexc&gt; - Đổi sàn giao dịch\n"
             "/language &lt;vi|en&gt; - Đổi ngôn ngữ chatbot\n"
             "/lang &lt;vi|en&gt; - Alias ngắn gọn của /language\n"
+            "/resetconfig - Reset cấu hình runtime về mặc định\n"
             "/addsymbol BTC/USDT - Thêm symbol vào danh sách theo dõi\n"
             "/remsymbol BTC/USDT - Xóa symbol khỏi danh sách theo dõi\n"
             "\n"
             "<b>Lưu ý</b>\n"
-            "- Nên dùng paper mode trước khi chạy live\n"
-            "- Khi DRY_RUN=true, bot vẫn dùng PaperExchange để mô phỏng\n"
-            "- Bạn có thể đổi ngôn ngữ bằng lệnh hoặc nút Language trên keyboard"
+            "- Bot giữ lại cấu hình runtime hiện tại sau khi restart\n"
+            "- Dùng /resetconfig để quay về cấu hình mặc định lấy từ file .env\n"
+            "- Khi DRY_RUN=true, bot vẫn dùng PaperExchange để mô phỏng"
         ),
         "status_title": "Status",
         "status_running": "Đang chạy",
@@ -49,6 +50,7 @@ MESSAGES = {
         "usage_addsymbol": "Cách dùng: /addsymbol BTC/USDT",
         "usage_remsymbol": "Cách dùng: /remsymbol BTC/USDT",
         "usage_language": "Cách dùng: /language <vi|en> hoặc /lang <vi|en>",
+        "config_reset": "Đã reset cấu hình runtime về mặc định.",
         "exchange_changed": "Đã chuyển exchange sang: {exchange}",
         "symbol_added": "Đã thêm symbol: {symbol}",
         "symbol_removed": "Đã xóa symbol: {symbol}",
@@ -78,7 +80,7 @@ MESSAGES = {
     },
     "en": {
         "unauthorized": "You are not authorized to use this bot.",
-        "start": "Trading bot v4 is ready.\nUse /help to see the full guide and supported commands.",
+        "start": "Trading bot v5 is ready.\nUse /help to see the full guide and supported commands.",
         "help": (
             "<b>User Guide</b>\n"
             "/start - Open the bot and show the quick action keyboard\n"
@@ -89,13 +91,14 @@ MESSAGES = {
             "/exchange &lt;paper|binance|bybit|mexc&gt; - Change exchange\n"
             "/language &lt;vi|en&gt; - Change chatbot language\n"
             "/lang &lt;vi|en&gt; - Short alias for /language\n"
+            "/resetconfig - Reset runtime config to defaults\n"
             "/addsymbol BTC/USDT - Add a symbol to the watchlist\n"
             "/remsymbol BTC/USDT - Remove a symbol from the watchlist\n"
             "\n"
             "<b>Notes</b>\n"
-            "- Use paper mode before live trading\n"
-            "- When DRY_RUN=true, the bot still uses PaperExchange for simulation\n"
-            "- You can switch language by command or with the Language buttons on the keyboard"
+            "- The bot keeps the current runtime config after restart\n"
+            "- Use /resetconfig to restore defaults from .env\n"
+            "- When DRY_RUN=true, the bot still uses PaperExchange for simulation"
         ),
         "status_title": "Status",
         "status_running": "Running",
@@ -120,6 +123,7 @@ MESSAGES = {
         "usage_addsymbol": "Usage: /addsymbol BTC/USDT",
         "usage_remsymbol": "Usage: /remsymbol BTC/USDT",
         "usage_language": "Usage: /language <vi|en> or /lang <vi|en>",
+        "config_reset": "Runtime config has been reset to defaults.",
         "exchange_changed": "Exchange switched to: {exchange}",
         "symbol_added": "Added symbol: {symbol}",
         "symbol_removed": "Removed symbol: {symbol}",
@@ -140,7 +144,7 @@ MESSAGES = {
         "keyboard_resume": "Resume",
         "keyboard_mode_paper": "Mode: Paper",
         "keyboard_mode_live": "Mode: Live",
-        "keyboard_language_vi": "Tieng Viet",
+        "keyboard_language_vi": "Tiếng Việt",
         "keyboard_language_en": "English",
         "keyboard_close_all": "Close All",
         "keyboard_language_row": "Language",

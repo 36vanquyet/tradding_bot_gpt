@@ -49,6 +49,10 @@ Chatbot dùng để:
 - `/lang <vi|en>`
   Alias rút gọn của `/language`
 
+- `/resetconfig`
+  Reset các cấu hình runtime về mặc định lúc khởi động bot:
+  `bot_running`, `auto_trading`, `mode`, `exchange`, `language`, `symbols`
+
 ## Inline keyboard
 
 - `Status`
@@ -84,6 +88,31 @@ Chatbot dùng để:
 - `Close All`
   Đóng toàn bộ vị thế hiện tại bằng market order qua adapter đang dùng
 
+## Ý nghĩa `paper` và `live`
+
+- `paper`: bot mô phỏng giao dịch qua `PaperExchange`, không gửi lệnh thật lên sàn
+- `live`: bot dùng CCXT adapter để gửi lệnh thật lên sàn đang chọn
+- Nếu `DRY_RUN=true`, bot vẫn dùng `PaperExchange` ngay cả khi chuyển sang `live`
+
+## `/status` gồm những gì
+
+Lệnh `/status` đang hiển thị:
+
+- `bot_running`
+- `auto_trading`
+- `mode`
+- `exchange`
+- `language`
+- `symbols`
+- `balance_quote`
+- `open_positions`
+- `daily_pnl`
+- `last_signal`
+- `last_trade`
+- `last_error`
+
+Lưu ý: danh sách `pending_orders` hiện có trong state và dashboard JSON, nhưng chưa được render trong text của `/status`.
+
 ## Đa ngôn ngữ
 
 - Hỗ trợ `vi` và `en`
@@ -98,3 +127,4 @@ Khi người dùng bấm lặp cùng một nút như `Resume` nhiều lần liê
 
 - Chatbot hiện chủ yếu phục vụ điều khiển vận hành, chưa hỗ trợ sửa sâu các tham số strategy từ chat
 - Dashboard web hiện là read-only, chưa có nút điều khiển từ giao diện web
+- `Close All` dùng exchange object hiện tại trong bộ nhớ ứng dụng; sau thao tác, trạng thái chi tiết sẽ được đồng bộ lại ở vòng engine kế tiếp

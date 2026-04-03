@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import time
 
 from telegram import Update
@@ -10,6 +11,9 @@ from telegram.ext import ContextTypes
 from app.exchange.factory import build_exchange
 from app.telegram.i18n import normalize_language, t
 from app.telegram.keyboards import main_keyboard
+
+
+logger = logging.getLogger(__name__)
 
 
 def _is_authorized(update: Update, allowed_user_ids: set[int]) -> bool:
@@ -92,6 +96,22 @@ async def language_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     await update.effective_message.reply_text(t(requested, "language_changed"), reply_markup=main_keyboard(requested))
 
 
+async def reset_config_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    allowed = set(context.application.bot_data["allowed_user_ids"])
+    if not _is_authorized(update, allowed):
+        await update.effective_message.reply_text(t("vi", "unauthorized"))
+        return
+    control = context.application.bot_data["control_service"]
+    settings = context.application.bot_data["settings"]
+    engine = context.application.bot_data["engine"]
+    control.reset_runtime_config()
+    exchange = build_exchange(settings, control.state.mode, control.state.exchange)
+    engine.set_exchange(exchange)
+    context.application.bot_data["exchange"] = exchange
+    language = normalize_language(control.state.language)
+    await update.effective_message.reply_text(t(language, "config_reset"), reply_markup=main_keyboard(language))
+
+
 async def status_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     allowed = set(context.application.bot_data["allowed_user_ids"])
     if not _is_authorized(update, allowed):
@@ -141,10 +161,18 @@ async def exchange_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     requested = context.args[0].lower()
     settings = context.application.bot_data["settings"]
     engine = context.application.bot_data["engine"]
+    previous = control.state.exchange
     exchange = build_exchange(settings, control.state.mode, requested)
     engine.set_exchange(exchange)
     control.set_exchange(requested)
     context.application.bot_data["exchange"] = exchange
+    logger.info(
+        "Exchange changed via Telegram %s -> %s (db=%s, mode=%s)",
+        previous,
+        control.state.exchange,
+        control.store.db_path,
+        control.state.mode,
+    )
     await update.effective_message.reply_text(t(language, "exchange_changed", exchange=requested), reply_markup=main_keyboard(language))
 
 
