@@ -1,0 +1,104 @@
+from __future__ import annotations
+
+import threading
+import time
+from typing import Dict, List
+
+from app.core.models import BotState
+from app.core.state_store import SQLiteStateStore
+
+
+class ControlService:
+    def __init__(self, state: BotState, store: SQLiteStateStore) -> None:
+        self.state = state
+        self.store = store
+        self._lock = threading.Lock()
+        self.persist()
+
+    def persist(self) -> None:
+        self.store.save_state(self.state)
+
+    def get_status(self) -> Dict[str, object]:
+        with self._lock:
+            return {
+                "bot_running": self.state.bot_running,
+                "auto_trading": self.state.auto_trading,
+                "mode": self.state.mode,
+                "exchange": self.state.exchange,
+                "symbols": list(self.state.symbols),
+                "balance_quote": self.state.balance_quote,
+                "daily_pnl": self.state.daily_pnl,
+                "open_positions": list(self.state.open_positions.keys()),
+                "last_signal": self.state.last_signal,
+                "last_trade": self.state.last_trade,
+                "heartbeat_ts": self.state.heartbeat_ts,
+                "last_error": self.state.last_error,
+            }
+
+    def pause_bot(self) -> None:
+        with self._lock:
+            self.state.bot_running = False
+            self.persist()
+
+    def resume_bot(self) -> None:
+        with self._lock:
+            self.state.bot_running = True
+            self.persist()
+
+    def enable_auto(self) -> None:
+        with self._lock:
+            self.state.auto_trading = True
+            self.persist()
+
+    def disable_auto(self) -> None:
+        with self._lock:
+            self.state.auto_trading = False
+            self.persist()
+
+    def set_mode(self, mode: str) -> None:
+        if mode not in {"paper", "live"}:
+            raise ValueError("mode must be 'paper' or 'live'")
+        with self._lock:
+            self.state.mode = mode
+            self.persist()
+
+    def set_exchange(self, exchange: str) -> None:
+        exchange = exchange.lower()
+        if exchange not in self.state.allowed_exchanges:
+            raise ValueError(f"Unsupported exchange: {exchange}")
+        with self._lock:
+            self.state.exchange = exchange
+            self.persist()
+
+    def set_symbols(self, symbols: List[str]) -> None:
+        cleaned = [s.strip().upper() for s in symbols if s.strip()]
+        if not cleaned:
+            raise ValueError("symbols cannot be empty")
+        with self._lock:
+            self.state.symbols = cleaned
+            self.persist()
+
+    def add_symbol(self, symbol: str) -> None:
+        symbol = symbol.strip().upper()
+        if not symbol:
+            raise ValueError("symbol cannot be empty")
+        with self._lock:
+            if symbol not in self.state.symbols:
+                self.state.symbols.append(symbol)
+            self.persist()
+
+    def remove_symbol(self, symbol: str) -> None:
+        symbol = symbol.strip().upper()
+        with self._lock:
+            self.state.symbols = [s for s in self.state.symbols if s != symbol]
+            self.persist()
+
+    def set_heartbeat(self) -> None:
+        with self._lock:
+            self.state.heartbeat_ts = time.time()
+            self.persist()
+
+    def set_error(self, message: str) -> None:
+        with self._lock:
+            self.state.last_error = message
+            self.persist()
