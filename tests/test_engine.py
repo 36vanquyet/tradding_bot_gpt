@@ -35,3 +35,28 @@ def test_engine_stop_loss_take_profit() -> None:
     exchange.set_price("BTC/USDT", 104.0)
     engine.run_n_steps_sync(1)
     assert "BTC/USDT" not in control.state.open_positions
+
+
+def test_engine_trailing_stop_moves_up() -> None:
+    settings = load_settings()
+    state = BotState(auto_trading=False, mode="paper", exchange="paper", symbols=["BTC/USDT"], balance_quote=1000)
+    store = SQLiteStateStore(":memory:")
+    control = ControlService(state, store)
+    exchange = PaperExchange(
+        balance_quote=1000,
+        prices={"BTC/USDT": 100},
+        default_stop_loss_pct=0.02,
+        default_take_profit_pct=0.5,
+        default_trailing_stop_pct=0.01,
+    )
+    exchange.create_market_buy("BTC/USDT", 1)
+    strategy = MovingAverageCrossStrategy(settings.fast_ma, settings.slow_ma)
+    risk = FixedFractionalRisk(settings.risk_per_trade)
+    engine = TradingEngine(settings, control, exchange, strategy, risk)
+    engine.sync_positions_into_state()
+
+    old_stop = control.state.open_positions["BTC/USDT"].stop_loss
+    exchange.set_price("BTC/USDT", 110.0)
+    engine.run_n_steps_sync(1)
+
+    assert control.state.open_positions["BTC/USDT"].stop_loss > old_stop

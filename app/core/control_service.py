@@ -25,10 +25,12 @@ class ControlService:
                 "auto_trading": self.state.auto_trading,
                 "mode": self.state.mode,
                 "exchange": self.state.exchange,
+                "language": self.state.language,
                 "symbols": list(self.state.symbols),
                 "balance_quote": self.state.balance_quote,
                 "daily_pnl": self.state.daily_pnl,
                 "open_positions": list(self.state.open_positions.keys()),
+                "pending_orders": list(self.state.pending_orders.keys()),
                 "last_signal": self.state.last_signal,
                 "last_trade": self.state.last_trade,
                 "heartbeat_ts": self.state.heartbeat_ts,
@@ -68,6 +70,14 @@ class ControlService:
             raise ValueError(f"Unsupported exchange: {exchange}")
         with self._lock:
             self.state.exchange = exchange
+            self.persist()
+
+    def set_language(self, language: str) -> None:
+        language = language.lower()
+        if language not in {"vi", "en"}:
+            raise ValueError("language must be 'vi' or 'en'")
+        with self._lock:
+            self.state.language = language
             self.persist()
 
     def set_symbols(self, symbols: List[str]) -> None:

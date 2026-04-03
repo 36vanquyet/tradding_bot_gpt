@@ -10,3 +10,12 @@ def test_paper_buy_sell_cycle() -> None:
     sell = ex.create_market_sell("BTC/USDT", 1)
     assert sell.side == "SELL"
     assert "BTC/USDT" not in ex.positions
+
+
+def test_paper_limit_buy_fills_when_price_hits() -> None:
+    ex = PaperExchange(balance_quote=1000, prices={"BTC/USDT": 100})
+    order = ex.create_limit_buy("BTC/USDT", 1, 95)
+    assert order.order_id in ex.open_orders
+    ex.set_price("BTC/USDT", 95)
+    assert order.order_id not in ex.open_orders
+    assert "BTC/USDT" in ex.positions

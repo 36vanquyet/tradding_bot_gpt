@@ -1,25 +1,31 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
+from app.telegram.i18n import t
 
-def main_keyboard() -> InlineKeyboardMarkup:
+
+def main_keyboard(language: str = "vi") -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
             [
-                InlineKeyboardButton("Status", callback_data="status"),
-                InlineKeyboardButton("Health", callback_data="health"),
+                InlineKeyboardButton(t(language, "keyboard_status"), callback_data="status"),
+                InlineKeyboardButton(t(language, "keyboard_health"), callback_data="health"),
             ],
             [
-                InlineKeyboardButton("Auto ON", callback_data="auto_on"),
-                InlineKeyboardButton("Auto OFF", callback_data="auto_off"),
+                InlineKeyboardButton(t(language, "keyboard_auto_on"), callback_data="auto_on"),
+                InlineKeyboardButton(t(language, "keyboard_auto_off"), callback_data="auto_off"),
             ],
             [
-                InlineKeyboardButton("Pause", callback_data="pause"),
-                InlineKeyboardButton("Resume", callback_data="resume"),
+                InlineKeyboardButton(t(language, "keyboard_pause"), callback_data="pause"),
+                InlineKeyboardButton(t(language, "keyboard_resume"), callback_data="resume"),
             ],
             [
-                InlineKeyboardButton("Mode: Paper", callback_data="mode_paper"),
-                InlineKeyboardButton("Mode: Live", callback_data="mode_live"),
+                InlineKeyboardButton(t(language, "keyboard_mode_paper"), callback_data="mode_paper"),
+                InlineKeyboardButton(t(language, "keyboard_mode_live"), callback_data="mode_live"),
             ],
-            [InlineKeyboardButton("Close All", callback_data="close_all")],
+            [
+                InlineKeyboardButton(t(language, "keyboard_language_vi"), callback_data="lang_vi"),
+                InlineKeyboardButton(t(language, "keyboard_language_en"), callback_data="lang_en"),
+            ],
+            [InlineKeyboardButton(t(language, "keyboard_close_all"), callback_data="close_all")],
         ]
     )

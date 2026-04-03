@@ -46,6 +46,14 @@ class Settings:
     max_open_positions: int
     stop_loss_pct: float
     take_profit_pct: float
+    trailing_stop_pct: float
+    entry_order_type: str
+    limit_price_offset_pct: float
+    api_retry_attempts: int
+    api_retry_delay_seconds: float
+    dashboard_enabled: bool
+    dashboard_host: str
+    dashboard_port: int
     quote_asset: str
     telegram_bot_token: str
     telegram_allowed_user_ids: List[int]
@@ -74,6 +82,14 @@ def load_settings() -> Settings:
         max_open_positions=int(os.getenv("MAX_OPEN_POSITIONS", "3")),
         stop_loss_pct=float(os.getenv("STOP_LOSS_PCT", "0.02")),
         take_profit_pct=float(os.getenv("TAKE_PROFIT_PCT", "0.04")),
+        trailing_stop_pct=float(os.getenv("TRAILING_STOP_PCT", "0.01")),
+        entry_order_type=os.getenv("ENTRY_ORDER_TYPE", "market").lower(),
+        limit_price_offset_pct=float(os.getenv("LIMIT_PRICE_OFFSET_PCT", "0.001")),
+        api_retry_attempts=int(os.getenv("API_RETRY_ATTEMPTS", "3")),
+        api_retry_delay_seconds=float(os.getenv("API_RETRY_DELAY_SECONDS", "1.0")),
+        dashboard_enabled=_get_bool("DASHBOARD_ENABLED", True),
+        dashboard_host=os.getenv("DASHBOARD_HOST", "127.0.0.1"),
+        dashboard_port=int(os.getenv("DASHBOARD_PORT", "8080")),
         quote_asset=os.getenv("QUOTE_ASSET", "USDT"),
         telegram_bot_token=os.getenv("TELEGRAM_BOT_TOKEN", ""),
         telegram_allowed_user_ids=[int(x) for x in _get_list("TELEGRAM_ALLOWED_USER_IDS", [])],

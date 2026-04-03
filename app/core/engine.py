@@ -7,7 +7,7 @@ from typing import Optional
 
 from app.config.settings import Settings
 from app.core.control_service import ControlService
-from app.core.models import Position
+from app.core.models import Order, Position
 from app.core.risk import FixedFractionalRisk
 from app.exchange.base import ExchangeAdapter
 from app.strategy.ma_cross import MovingAverageCrossStrategy
@@ -41,6 +41,7 @@ class TradingEngine:
         self._stop = True
 
     def sync_positions_into_state(self) -> None:
+        self.exchange.sync(self.control.state.symbols)
         positions = self.exchange.fetch_positions()
         self.control.state.open_positions = {
             pos.symbol: Position(
@@ -49,18 +50,55 @@ class TradingEngine:
                 entry_price=pos.entry_price,
                 stop_loss=pos.stop_loss,
                 take_profit=pos.take_profit,
+                highest_price=pos.highest_price,
+                trailing_stop_pct=pos.trailing_stop_pct,
+                source=pos.source,
             )
             for pos in positions
+        }
+        self.control.state.pending_orders = {
+            order.order_id or f"{order.symbol}-{order.side}": Order(
+                symbol=order.symbol,
+                side=order.side,
+                quantity=order.quantity,
+                price=order.price,
+                order_type=order.order_type,
+                status=order.status,
+                order_id=order.order_id,
+            )
+            for order in self.exchange.fetch_open_orders()
         }
         self.control.persist()
 
     async def notify(self, message: str) -> None:
         await self.notifier.send(message)
 
+    def _apply_trailing_stop(self, pos: Position, current_price: float) -> bool:
+        trailing_pct = pos.trailing_stop_pct or self.settings.trailing_stop_pct
+        updated = False
+        highest_price = pos.highest_price or pos.entry_price
+        if current_price > highest_price:
+            highest_price = current_price
+            pos.highest_price = current_price
+            updated = True
+        if trailing_pct > 0:
+            trailing_stop = highest_price * (1 - trailing_pct)
+            if pos.stop_loss is None or trailing_stop > pos.stop_loss:
+                pos.stop_loss = trailing_stop
+                updated = True
+        if updated and hasattr(self.exchange, "positions") and pos.symbol in getattr(self.exchange, "positions", {}):
+            self.exchange.positions[pos.symbol].highest_price = pos.highest_price
+            self.exchange.positions[pos.symbol].stop_loss = pos.stop_loss
+            self.exchange.positions[pos.symbol].trailing_stop_pct = trailing_pct
+        return updated
+
     def _protect_positions(self) -> list[str]:
         alerts: list[str] = []
+        changed = False
         for symbol, pos in list(self.control.state.open_positions.items()):
             current_price = self.exchange.fetch_ticker_price(symbol)
+            if self._apply_trailing_stop(pos, current_price):
+                changed = True
             if pos.stop_loss is not None and current_price <= pos.stop_loss:
                 trade = self.exchange.create_market_sell(symbol, pos.quantity)
                 pnl = (trade.price - pos.entry_price) * pos.quantity - trade.fee
@@ -71,11 +109,28 @@ class TradingEngine:
                 pnl = (trade.price - pos.entry_price) * pos.quantity - trade.fee
                 self.control.state.daily_pnl += pnl
                 alerts.append(f"TAKE PROFIT {symbol} qty={trade.quantity:.6f} @ {trade.price:.2f} pnl={pnl:.2f}")
-        if alerts:
+        if alerts or changed:
             self.sync_positions_into_state()
             self.control.state.balance_quote = self.exchange.fetch_balance_quote(self.settings.quote_asset)
             self.control.persist()
         return alerts
+
+    def _entry_limit_price(self, price: float) -> float:
+        return price * (1 - self.settings.limit_price_offset_pct)
+
+    async def _place_entry(self, symbol: str, quantity: float, price: float) -> None:
+        if self.settings.entry_order_type == "limit":
+            limit_price = self._entry_limit_price(price)
+            order = self.exchange.create_limit_buy(symbol, quantity, limit_price)
+            self.control.state.last_trade = f"LIMIT BUY {order.symbol} qty={order.quantity:.6f} @ {order.price:.2f} status={order.status}"
+        else:
+            trade = self.exchange.create_market_buy(symbol, quantity)
+            position = self.exchange.positions.get(symbol) if hasattr(self.exchange, "positions") else None
+            self.control.state.last_trade = (
+                f"BUY {trade.symbol} qty={trade.quantity:.6f} @ {trade.price:.2f} "
+                f"sl={position.stop_loss if position else None} tp={position.take_profit if position else None}"
+            )
+        await self.notify(self.control.state.last_trade)
 
     async def step(self) -> None:
         try:
@@ -107,13 +162,7 @@ class TradingEngine:
                     rule = self.exchange.fetch_symbol_rule(symbol)
                     quantity = self.risk.sized_quantity(self.control.state.balance_quote, price, rule)
                     if quantity > 0:
-                        trade = self.exchange.create_market_buy(symbol, quantity)
-                        position = self.exchange.positions.get(symbol) if hasattr(self.exchange, "positions") else None
-                        self.control.state.last_trade = (
-                            f"BUY {trade.symbol} qty={trade.quantity:.6f} @ {trade.price:.2f} "
-                            f"sl={position.stop_loss if position else None} tp={position.take_profit if position else None}"
-                        )
-                        await self.notify(self.control.state.last_trade)
+                        await self._place_entry(symbol, quantity, price)
                 elif signal == "SELL" and symbol in self.control.state.open_positions:
                     pos = self.control.state.open_positions[symbol]
                     trade = self.exchange.create_market_sell(symbol, pos.quantity)

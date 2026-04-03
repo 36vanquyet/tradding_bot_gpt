@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import List, Sequence
 
-from app.core.models import Position, SymbolRule, Trade
+from app.core.models import Order, Position, SymbolRule, Trade
 
 
 class ExchangeAdapter(ABC):
@@ -26,7 +26,23 @@ class ExchangeAdapter(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def create_limit_buy(self, symbol: str, quantity: float, price: float) -> Order:
+        raise NotImplementedError
+
+    @abstractmethod
+    def create_limit_sell(self, symbol: str, quantity: float, price: float) -> Order:
+        raise NotImplementedError
+
+    @abstractmethod
     def fetch_positions(self) -> Sequence[Position]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def fetch_open_orders(self) -> Sequence[Order]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def sync(self, tracked_symbols: Sequence[str]) -> None:
         raise NotImplementedError
 
     @abstractmethod

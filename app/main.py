@@ -15,6 +15,7 @@ from app.strategy.ma_cross import MovingAverageCrossStrategy
 from app.telegram.bot import build_telegram_app
 from app.telegram.notifier import TelegramNotifier
 from app.utils.logger import setup_logging
+from app.web.dashboard import start_dashboard
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +42,11 @@ def main() -> None:
     risk = FixedFractionalRisk(settings.risk_per_trade)
     notifier = TelegramNotifier()
     engine = TradingEngine(settings, control, exchange, strategy, risk, notifier)
+    dashboard_server = None
+
+    if settings.dashboard_enabled:
+        dashboard_server = start_dashboard(control, settings.dashboard_host, settings.dashboard_port)
+        logger.info("Dashboard running at http://%s:%s", settings.dashboard_host, settings.dashboard_port)
 
     application = None
     if settings.telegram_bot_token:
@@ -63,7 +69,11 @@ def main() -> None:
         application.run_polling()
     else:
         logger.info("Telegram token missing. Engine running without Telegram. Press Ctrl+C to stop.")
-        thread.join()
+        try:
+            thread.join()
+        finally:
+            if dashboard_server is not None:
+                dashboard_server.shutdown()
 
 
 if __name__ == "__main__":
