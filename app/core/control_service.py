@@ -18,6 +18,12 @@ class ControlService:
     def persist(self) -> None:
         self.store.save_state(self.state)
 
+    def persist_runtime_config(self) -> None:
+        self.store.save_runtime_config(self.state)
+
+    def persist_engine_state(self) -> None:
+        self.store.save_engine_state(self.state)
+
     def get_status(self) -> Dict[str, object]:
         with self._lock:
             return {
@@ -51,29 +57,29 @@ class ControlService:
     def pause_bot(self) -> None:
         with self._lock:
             self.state.bot_running = False
-            self.persist()
+            self.persist_runtime_config()
 
     def resume_bot(self) -> None:
         with self._lock:
             self.state.bot_running = True
-            self.persist()
+            self.persist_runtime_config()
 
     def enable_auto(self) -> None:
         with self._lock:
             self.state.auto_trading = True
-            self.persist()
+            self.persist_runtime_config()
 
     def disable_auto(self) -> None:
         with self._lock:
             self.state.auto_trading = False
-            self.persist()
+            self.persist_runtime_config()
 
     def set_mode(self, mode: str) -> None:
         if mode not in {"paper", "live"}:
             raise ValueError("mode must be 'paper' or 'live'")
         with self._lock:
             self.state.mode = mode
-            self.persist()
+            self.persist_runtime_config()
 
     def set_exchange(self, exchange: str) -> None:
         exchange = exchange.lower()
@@ -81,7 +87,7 @@ class ControlService:
             raise ValueError(f"Unsupported exchange: {exchange}")
         with self._lock:
             self.state.exchange = exchange
-            self.persist()
+            self.persist_runtime_config()
 
     def set_language(self, language: str) -> None:
         language = language.lower()
@@ -89,7 +95,7 @@ class ControlService:
             raise ValueError("language must be 'vi' or 'en'")
         with self._lock:
             self.state.language = language
-            self.persist()
+            self.persist_runtime_config()
 
     def set_symbols(self, symbols: List[str]) -> None:
         cleaned = [s.strip().upper() for s in symbols if s.strip()]
@@ -97,7 +103,7 @@ class ControlService:
             raise ValueError("symbols cannot be empty")
         with self._lock:
             self.state.symbols = cleaned
-            self.persist()
+            self.persist_runtime_config()
 
     def add_symbol(self, symbol: str) -> None:
         symbol = symbol.strip().upper()
@@ -106,23 +112,23 @@ class ControlService:
         with self._lock:
             if symbol not in self.state.symbols:
                 self.state.symbols.append(symbol)
-            self.persist()
+            self.persist_runtime_config()
 
     def remove_symbol(self, symbol: str) -> None:
         symbol = symbol.strip().upper()
         with self._lock:
             self.state.symbols = [s for s in self.state.symbols if s != symbol]
-            self.persist()
+            self.persist_runtime_config()
 
     def set_heartbeat(self) -> None:
         with self._lock:
             self.state.heartbeat_ts = time.time()
-            self.persist()
+            self.persist_engine_state()
 
     def set_error(self, message: str) -> None:
         with self._lock:
             self.state.last_error = message
-            self.persist()
+            self.persist_engine_state()
 
     def reset_runtime_config(self) -> None:
         with self._lock:
@@ -132,4 +138,4 @@ class ControlService:
             self.state.exchange = self.state.default_exchange
             self.state.language = self.state.default_language
             self.state.symbols = list(self.state.default_symbols)
-            self.persist()
+            self.persist_runtime_config()

@@ -68,7 +68,7 @@ class TradingEngine:
             )
             for order in self.exchange.fetch_open_orders()
         }
-        self.control.persist()
+        self.control.persist_engine_state()
 
     async def notify(self, message: str) -> None:
         await self.notifier.send(message)
@@ -112,7 +112,7 @@ class TradingEngine:
         if alerts or changed:
             self.sync_positions_into_state()
             self.control.state.balance_quote = self.exchange.fetch_balance_quote(self.settings.quote_asset)
-            self.control.persist()
+            self.control.persist_engine_state()
         return alerts
 
     def _entry_limit_price(self, price: float) -> float:
@@ -140,7 +140,7 @@ class TradingEngine:
             self.control.set_heartbeat()
             self.sync_positions_into_state()
             self.control.state.balance_quote = self.exchange.fetch_balance_quote(self.settings.quote_asset)
-            self.control.persist()
+            self.control.persist_engine_state()
 
             for msg in self._protect_positions():
                 self.control.state.last_trade = msg
@@ -172,7 +172,7 @@ class TradingEngine:
                     await self.notify(self.control.state.last_trade)
                 self.sync_positions_into_state()
                 self.control.state.balance_quote = self.exchange.fetch_balance_quote(self.settings.quote_asset)
-                self.control.persist()
+                self.control.persist_engine_state()
         except Exception as exc:  # pragma: no cover
             logger.exception("Engine step failed")
             self.control.set_error(str(exc))

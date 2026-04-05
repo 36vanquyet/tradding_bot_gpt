@@ -14,6 +14,22 @@ logger = logging.getLogger(__name__)
 
 
 class SQLiteStateStore:
+    RUNTIME_KEYS = {
+        "bot_running",
+        "auto_trading",
+        "mode",
+        "exchange",
+        "language",
+        "symbols",
+        "default_bot_running",
+        "default_auto_trading",
+        "default_mode",
+        "default_exchange",
+        "default_language",
+        "default_symbols",
+        "allowed_exchanges",
+    }
+
     def __init__(self, db_path: str) -> None:
         self.db_path = str(Path(db_path))
         if self.db_path != ":memory:":
@@ -37,62 +53,22 @@ class SQLiteStateStore:
                 )
                 """
             )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS runtime_config (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL
+                )
+                """
+            )
             conn.commit()
 
     def save_state(self, state: BotState) -> None:
         conn = self._connect()
         with self._lock:
-            data = {
-                "bot_running": state.bot_running,
-                "auto_trading": state.auto_trading,
-                "mode": state.mode,
-                "exchange": state.exchange,
-                "language": state.language,
-                "symbols": list(state.symbols),
-                "default_bot_running": state.default_bot_running,
-                "default_auto_trading": state.default_auto_trading,
-                "default_mode": state.default_mode,
-                "default_exchange": state.default_exchange,
-                "default_language": state.default_language,
-                "default_symbols": list(state.default_symbols),
-                "balance_quote": state.balance_quote,
-                "daily_pnl": state.daily_pnl,
-                "open_positions": {
-                    symbol: {
-                        "symbol": pos.symbol,
-                        "quantity": pos.quantity,
-                        "entry_price": pos.entry_price,
-                        "stop_loss": pos.stop_loss,
-                        "take_profit": pos.take_profit,
-                        "highest_price": pos.highest_price,
-                        "trailing_stop_pct": pos.trailing_stop_pct,
-                        "source": pos.source,
-                    }
-                    for symbol, pos in state.open_positions.items()
-                },
-                "pending_orders": {
-                    order_id: {
-                        "symbol": order.symbol,
-                        "side": order.side,
-                        "quantity": order.quantity,
-                        "price": order.price,
-                        "order_type": order.order_type,
-                        "status": order.status,
-                        "order_id": order.order_id,
-                    }
-                    for order_id, order in state.pending_orders.items()
-                },
-                "last_signal": state.last_signal,
-                "last_trade": state.last_trade,
-                "heartbeat_ts": state.heartbeat_ts,
-                "last_error": state.last_error,
-                "allowed_exchanges": list(state.allowed_exchanges),
-            }
-            for key, value in data.items():
-                conn.execute("REPLACE INTO bot_state(key, value) VALUES(?, ?)", (key, json.dumps(value)))
-            conn.commit()
+            self._write_entries(conn, self._serialize_state(state))
             logger.debug(
-                "State persisted to %s mode=%s exchange=%s language=%s symbols=%s",
+                "Full state persisted to %s mode=%s exchange=%s language=%s symbols=%s",
                 self.db_path,
                 state.mode,
                 state.exchange,
@@ -100,14 +76,98 @@ class SQLiteStateStore:
                 state.symbols,
             )
 
+    def save_runtime_config(self, state: BotState) -> None:
+        conn = self._connect()
+        with self._lock:
+            data = self._serialize_state(state)
+            runtime = {key: value for key, value in data.items() if key in self.RUNTIME_KEYS}
+            self._write_entries(conn, runtime, table="runtime_config")
+            logger.debug(
+                "Runtime config persisted to %s mode=%s exchange=%s language=%s symbols=%s",
+                self.db_path,
+                state.mode,
+                state.exchange,
+                state.language,
+                state.symbols,
+            )
+
+    def save_engine_state(self, state: BotState) -> None:
+        conn = self._connect()
+        with self._lock:
+            data = self._serialize_state(state)
+            engine_state = {key: value for key, value in data.items() if key not in self.RUNTIME_KEYS}
+            self._write_entries(conn, engine_state)
+            logger.debug(
+                "Engine state persisted to %s balance=%s daily_pnl=%s",
+                self.db_path,
+                state.balance_quote,
+                state.daily_pnl,
+            )
+
+    def _write_entries(self, conn: sqlite3.Connection, data: Dict[str, Any], table: str = "bot_state") -> None:
+        for key, value in data.items():
+            conn.execute(f"REPLACE INTO {table}(key, value) VALUES(?, ?)", (key, json.dumps(value)))
+        conn.commit()
+
+    def _serialize_state(self, state: BotState) -> Dict[str, Any]:
+        return {
+            "bot_running": state.bot_running,
+            "auto_trading": state.auto_trading,
+            "mode": state.mode,
+            "exchange": state.exchange,
+            "language": state.language,
+            "symbols": list(state.symbols),
+            "default_bot_running": state.default_bot_running,
+            "default_auto_trading": state.default_auto_trading,
+            "default_mode": state.default_mode,
+            "default_exchange": state.default_exchange,
+            "default_language": state.default_language,
+            "default_symbols": list(state.default_symbols),
+            "balance_quote": state.balance_quote,
+            "daily_pnl": state.daily_pnl,
+            "open_positions": {
+                symbol: {
+                    "symbol": pos.symbol,
+                    "quantity": pos.quantity,
+                    "entry_price": pos.entry_price,
+                    "stop_loss": pos.stop_loss,
+                    "take_profit": pos.take_profit,
+                    "highest_price": pos.highest_price,
+                    "trailing_stop_pct": pos.trailing_stop_pct,
+                    "source": pos.source,
+                }
+                for symbol, pos in state.open_positions.items()
+            },
+            "pending_orders": {
+                order_id: {
+                    "symbol": order.symbol,
+                    "side": order.side,
+                    "quantity": order.quantity,
+                    "price": order.price,
+                    "order_type": order.order_type,
+                    "status": order.status,
+                    "order_id": order.order_id,
+                }
+                for order_id, order in state.pending_orders.items()
+            },
+            "last_signal": state.last_signal,
+            "last_trade": state.last_trade,
+            "heartbeat_ts": state.heartbeat_ts,
+            "last_error": state.last_error,
+            "allowed_exchanges": list(state.allowed_exchanges),
+        }
+
     def load_state(self, default: BotState) -> BotState:
         conn = self._connect()
         with self._lock:
             rows = conn.execute("SELECT key, value FROM bot_state").fetchall()
+            runtime_rows = conn.execute("SELECT key, value FROM runtime_config").fetchall()
         if not rows:
             logger.info("No saved state found in %s. Using defaults.", self.db_path)
             return default
         raw: Dict[str, Any] = {key: json.loads(value) for key, value in rows}
+        runtime_raw: Dict[str, Any] = {key: json.loads(value) for key, value in runtime_rows}
+        raw.update(runtime_raw)
         positions = {symbol: Position(**payload) for symbol, payload in raw.get("open_positions", {}).items()}
         pending_orders = {order_id: Order(**payload) for order_id, payload in raw.get("pending_orders", {}).items()}
         state = BotState(

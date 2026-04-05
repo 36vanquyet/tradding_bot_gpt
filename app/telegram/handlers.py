@@ -264,5 +264,5 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     elif data == "close_all":
         trades = exchange.close_all()
         control.state.last_trade = t(language, "close_all", count=len(trades))
-        control.persist()
+        control.persist_engine_state()
         await _safe_edit_message(query, control.state.last_trade, language)

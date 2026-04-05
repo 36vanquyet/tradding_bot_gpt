@@ -119,6 +119,12 @@ Lưu ý: danh sách `pending_orders` hiện có trong state và dashboard JSON, 
 - Ngôn ngữ hiện tại được lưu trong state của bot
 - Sau khi restart bot, ngôn ngữ vẫn được giữ lại
 
+## Persistence của runtime config
+
+- Các thay đổi runtime như `exchange`, `mode`, `language`, `symbols`, `bot_running`, `auto_trading` được persist riêng với engine state
+- Mục tiêu là tránh việc vòng lặp engine ghi đè lại config runtime khi bot đang chạy
+- Sau restart, bot ưu tiên load lại runtime config đã lưu gần nhất
+
 ## Hành vi chống lỗi lặp callback
 
 Khi người dùng bấm lặp cùng một nút như `Resume` nhiều lần liên tiếp, bot không còn văng lỗi `Message is not modified`. Trường hợp text và keyboard không đổi, callback được bỏ qua an toàn.

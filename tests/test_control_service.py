@@ -105,3 +105,37 @@ def test_state_store_uses_same_file_across_cwd_changes(tmp_path) -> None:
     assert loaded.mode == "live"
     assert loaded.exchange == "mexc"
     assert loaded.language == "en"
+
+
+def test_engine_state_persist_does_not_override_runtime_config() -> None:
+    store = SQLiteStateStore(":memory:")
+    state = BotState(
+        mode="paper",
+        exchange="binance",
+        language="vi",
+        symbols=["BTC/USDT"],
+        balance_quote=1000,
+    )
+    control = ControlService(state, store)
+
+    control.set_exchange("bybit")
+    control.state.exchange = "binance"
+    control.state.balance_quote = 777
+    control.persist_engine_state()
+
+    loaded = store.load_state(BotState())
+    assert loaded.exchange == "bybit"
+    assert loaded.balance_quote == 777
+
+
+def test_runtime_config_table_overrides_bot_state_on_load() -> None:
+    store = SQLiteStateStore(":memory:")
+    state = BotState(exchange="binance", mode="paper", language="vi")
+    control = ControlService(state, store)
+
+    control.set_exchange("bybit")
+    control.state.exchange = "binance"
+    control.persist_engine_state()
+
+    loaded = store.load_state(BotState())
+    assert loaded.exchange == "bybit"
