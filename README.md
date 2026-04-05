@@ -27,8 +27,11 @@ Khuyến nghị: luôn test ổn định ở `paper mode` trước khi dùng `li
 
 - Kiểm soát quyền truy cập theo `TELEGRAM_ALLOWED_USER_IDS`
 - Xem trạng thái bot qua `/status`
+- Xem vị thế đang mở qua `/positions`
+- Xem lệnh chờ qua `/orders`
 - Kiểm tra heartbeat qua `/health`
 - Đổi exchange qua `/exchange`
+- Đặt lệnh thủ công qua `/order`, `/buy`, `/sell`, `/close`
 - Quản lý danh sách symbol qua `/addsymbol`, `/remsymbol`, `/symbols`
 - Đổi ngôn ngữ qua `/language` hoặc `/lang`
 - Reset runtime config về giá trị mặc định qua `/resetconfig`
@@ -48,6 +51,8 @@ Dashboard hiển thị:
 
 - Mode, exchange, language
 - Balance, daily PnL
+- Candlestick chart kiểu dark-theme cho symbol đang theo dõi, có thể chọn timeframe `1m` tới `1w` và `spot/future`
+- MA line và volume overlay trên chart dashboard
 - Last signal, last trade, last error
 - Open positions
 - Pending orders
@@ -118,9 +123,15 @@ python -m app.main
 - `/start`
 - `/help`
 - `/status`
+- `/positions`
+- `/orders`
 - `/health`
 - `/symbols`
 - `/exchange <paper|binance|bybit|mexc>`
+- `/order <spot|future> <buy|sell> BTC/USDT 0.01|100usdt [market|limit] [price] [cross|isolated] [leverage]`
+- `/buy <spot|future> BTC/USDT 0.01|100usdt [market|limit] [price] [cross|isolated] [leverage]`
+- `/sell <spot|future> BTC/USDT 0.01 [market|limit] [price] [cross|isolated] [leverage]`
+- `/close <spot|future> BTC/USDT [quantity]`
 - `/addsymbol BTC/USDT`
 - `/remsymbol BTC/USDT`
 - `/language <vi|en>`
@@ -164,3 +175,8 @@ python -m app.main
 - Trailing stop hiện do bot quản lý ở tầng ứng dụng, không phải native trailing order của sàn
 - Nếu không cấu hình `TELEGRAM_BOT_TOKEN`, engine vẫn chạy nhưng không có chatbot Telegram
 - `exchange`, `mode`, `language`, `symbols`, `bot_running`, `auto_trading` được lưu riêng dưới dạng runtime config nên sẽ được giữ lại sau restart
+- Manual futures hiện hỗ trợ mở long và đóng vị thế; chưa hỗ trợ mở short thủ công
+- Với futures live, bot sẽ tự chuẩn hóa `BTC/USDT` thành format unified của CCXT như `BTC/USDT:USDT`
+- Có thể truyền `cross` hoặc `isolated` và leverage ngay trong command futures; nếu bỏ qua bot dùng `FUTURE_MARGIN_MODE` và `FUTURE_LEVERAGE` từ `.env`
+- Lệnh mua hỗ trợ nhập notional theo USDT, ví dụ `100usdt`, bot sẽ tự quy đổi sang quantity theo giá market hoặc giá limit
+- Khi bot gặp dust position nhỏ hơn `min_qty` của sàn, engine sẽ báo `SKIP CLOSE ...` một lần đầu rồi bỏ qua các vòng sau thay vì spam lỗi lặp lại

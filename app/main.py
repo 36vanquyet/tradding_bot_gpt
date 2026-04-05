@@ -54,7 +54,13 @@ def main() -> None:
     dashboard_server = None
 
     if settings.dashboard_enabled:
-        dashboard_server = start_dashboard(control, settings.dashboard_host, settings.dashboard_port)
+        dashboard_server = start_dashboard(
+            control,
+            exchange_getter=lambda: engine.exchange,
+            timeframe=settings.default_timeframe,
+            host=settings.dashboard_host,
+            port=settings.dashboard_port,
+        )
         logger.info("Dashboard running at http://%s:%s", settings.dashboard_host, settings.dashboard_port)
 
     application = None
@@ -68,7 +74,11 @@ def main() -> None:
             settings=settings,
             engine=engine,
         )
-        notifier = TelegramNotifier(application=application, chat_id=settings.telegram_chat_id or None)
+        notifier = TelegramNotifier(
+            application=application,
+            chat_id=settings.telegram_chat_id or None,
+            token=settings.telegram_bot_token,
+        )
         engine.notifier = notifier
 
     thread = threading.Thread(target=lambda: asyncio.run(_run_engine(engine)), daemon=True)

@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import time
 
 from telegram import Update
@@ -6,6 +7,7 @@ from telegram.constants import ParseMode
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 
+from app.core.manual_trading import execute_close_position, execute_manual_order, parse_manual_order_args
 from app.exchange.factory import build_exchange
 from app.telegram.i18n import normalize_language, t
 from app.telegram.keyboards import main_keyboard
@@ -44,6 +46,39 @@ def _status_text(control) -> str:
 
 def _help_text(language: str) -> str:
     return t(language, "help")
+
+
+def _positions_text(control) -> str:
+    lang = normalize_language(control.state.language)
+    positions = list(control.state.open_positions.values())
+    if not positions:
+        return f"<b>{t(lang, 'positions_title')}</b>\n{t(lang, 'none')}"
+    lines = [f"<b>{t(lang, 'positions_title')}</b>"]
+    for pos in positions:
+        lines.append(
+            (
+                f"{pos.symbol} | qty={pos.quantity:.6f} | entry={pos.entry_price:.2f}"
+                f" | sl={pos.stop_loss if pos.stop_loss is not None else '-'}"
+                f" | tp={pos.take_profit if pos.take_profit is not None else '-'}"
+            )
+        )
+    return "\n".join(lines)
+
+
+def _orders_text(control) -> str:
+    lang = normalize_language(control.state.language)
+    orders = list(control.state.pending_orders.values())
+    if not orders:
+        return f"<b>{t(lang, 'orders_title')}</b>\n{t(lang, 'none')}"
+    lines = [f"<b>{t(lang, 'orders_title')}</b>"]
+    for order in orders:
+        lines.append(
+            (
+                f"{order.symbol} | {order.side} | {order.order_type}"
+                f" | qty={order.quantity:.6f} | price={order.price:.2f} | status={order.status}"
+            )
+        )
+    return "\n".join(lines)
 
 
 async def _safe_edit_message(query, text: str, language: str, parse_mode: str | None = None) -> None:
@@ -143,6 +178,36 @@ async def symbols_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     )
 
 
+async def positions_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    allowed = set(context.application.bot_data["allowed_user_ids"])
+    if not _is_authorized(update, allowed):
+        await update.effective_message.reply_text(t("vi", "unauthorized"))
+        return
+    control = context.application.bot_data["control_service"]
+    engine = context.application.bot_data["engine"]
+    engine.sync_positions_into_state()
+    await update.effective_message.reply_text(
+        _positions_text(control),
+        parse_mode=ParseMode.HTML,
+        reply_markup=main_keyboard(control.state.language),
+    )
+
+
+async def orders_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    allowed = set(context.application.bot_data["allowed_user_ids"])
+    if not _is_authorized(update, allowed):
+        await update.effective_message.reply_text(t("vi", "unauthorized"))
+        return
+    control = context.application.bot_data["control_service"]
+    engine = context.application.bot_data["engine"]
+    engine.sync_positions_into_state()
+    await update.effective_message.reply_text(
+        _orders_text(control),
+        parse_mode=ParseMode.HTML,
+        reply_markup=main_keyboard(control.state.language),
+    )
+
+
 async def exchange_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     allowed = set(context.application.bot_data["allowed_user_ids"])
     if not _is_authorized(update, allowed):
@@ -156,12 +221,93 @@ async def exchange_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     requested = context.args[0].lower()
     settings = context.application.bot_data["settings"]
     engine = context.application.bot_data["engine"]
-    previous = control.state.exchange
     exchange = build_exchange(settings, control.state.mode, requested)
     engine.set_exchange(exchange)
     control.set_exchange(requested)
     context.application.bot_data["exchange"] = exchange
     await update.effective_message.reply_text(t(language, "exchange_changed", exchange=requested), reply_markup=main_keyboard(language))
+
+
+async def order_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    allowed = set(context.application.bot_data["allowed_user_ids"])
+    if not _is_authorized(update, allowed):
+        await update.effective_message.reply_text(t("vi", "unauthorized"))
+        return
+    control = context.application.bot_data["control_service"]
+    language = normalize_language(control.state.language)
+    if len(context.args) < 4:
+        await update.effective_message.reply_text(t(language, "usage_order"), reply_markup=main_keyboard(language))
+        return
+
+    settings = context.application.bot_data["settings"]
+    engine = context.application.bot_data["engine"]
+    exchange = context.application.bot_data["exchange"]
+    try:
+        request = parse_manual_order_args(context.args)
+        message = execute_manual_order(request, settings, control, engine, exchange)
+    except Exception as exc:
+        control.set_error(str(exc))
+        await update.effective_message.reply_text(str(exc), reply_markup=main_keyboard(language))
+        return
+    await update.effective_message.reply_text(message, reply_markup=main_keyboard(language))
+
+
+async def buy_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await _manual_order_cmd(update, context, side_override="buy")
+
+
+async def sell_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await _manual_order_cmd(update, context, side_override="sell")
+
+
+async def close_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    allowed = set(context.application.bot_data["allowed_user_ids"])
+    if not _is_authorized(update, allowed):
+        await update.effective_message.reply_text(t("vi", "unauthorized"))
+        return
+    control = context.application.bot_data["control_service"]
+    language = normalize_language(control.state.language)
+    if len(context.args) < 2:
+        await update.effective_message.reply_text(t(language, "usage_close"), reply_markup=main_keyboard(language))
+        return
+
+    market_kind = context.args[0].lower()
+    symbol = context.args[1].upper()
+    quantity = float(context.args[2]) if len(context.args) > 2 else None
+    settings = context.application.bot_data["settings"]
+    engine = context.application.bot_data["engine"]
+    exchange = context.application.bot_data["exchange"]
+    try:
+        message = execute_close_position(market_kind, symbol, settings, control, engine, exchange, quantity=quantity)
+    except Exception as exc:
+        control.set_error(str(exc))
+        await update.effective_message.reply_text(str(exc), reply_markup=main_keyboard(language))
+        return
+    await update.effective_message.reply_text(message, reply_markup=main_keyboard(language))
+
+
+async def _manual_order_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE, side_override: str) -> None:
+    allowed = set(context.application.bot_data["allowed_user_ids"])
+    if not _is_authorized(update, allowed):
+        await update.effective_message.reply_text(t("vi", "unauthorized"))
+        return
+    control = context.application.bot_data["control_service"]
+    language = normalize_language(control.state.language)
+    if len(context.args) < 3:
+        await update.effective_message.reply_text(t(language, f"usage_{side_override}"), reply_markup=main_keyboard(language))
+        return
+
+    settings = context.application.bot_data["settings"]
+    engine = context.application.bot_data["engine"]
+    exchange = context.application.bot_data["exchange"]
+    try:
+        request = parse_manual_order_args(context.args, side_override=side_override)
+        message = execute_manual_order(request, settings, control, engine, exchange)
+    except Exception as exc:
+        control.set_error(str(exc))
+        await update.effective_message.reply_text(str(exc), reply_markup=main_keyboard(language))
+        return
+    await update.effective_message.reply_text(message, reply_markup=main_keyboard(language))
 
 
 async def add_symbol_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -250,7 +396,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         control.set_language("en")
         await _safe_edit_message(query, t("en", "language_changed"), "en")
     elif data == "close_all":
-        trades = exchange.close_all()
-        control.state.last_trade = t(language, "close_all", count=len(trades))
-        control.persist_engine_state()
-        await _safe_edit_message(query, control.state.last_trade, language)
+        try:
+            trades = exchange.close_all()
+            control.state.last_trade = t(language, "close_all", count=len(trades))
+            control.persist_engine_state()
+            await _safe_edit_message(query, control.state.last_trade, language)
+        except Exception as exc:
+            control.set_error(str(exc))
+            await _safe_edit_message(query, str(exc), language)

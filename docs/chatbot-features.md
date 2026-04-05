@@ -28,6 +28,12 @@ Chatbot dùng để:
   Hiện:
   `bot_running`, `auto_trading`, `mode`, `exchange`, `language`, `symbols`, `balance_quote`, `open_positions`, `daily_pnl`, `last_signal`, `last_trade`, `last_error`
 
+- `/positions`
+  Hiện chi tiết các vị thế đang mở như symbol, quantity, entry price, stop loss, take profit
+
+- `/orders`
+  Hiện danh sách pending orders đang chờ khớp
+
 - `/health`
   Kiểm tra heartbeat của engine để biết bot còn chạy đúng vòng lặp không
 
@@ -36,6 +42,18 @@ Chatbot dùng để:
 
 - `/exchange <paper|binance|bybit|mexc>`
   Đổi exchange hiện tại
+
+- `/order <spot|future> <buy|sell> <symbol> <quantity|100usdt> [market|limit] [price] [cross|isolated] [leverage]`
+  Đặt lệnh thủ công theo cú pháp tổng quát
+
+- `/buy <spot|future> <symbol> <quantity|100usdt> [market|limit] [price] [cross|isolated] [leverage]`
+  Shortcut cho lệnh mua thủ công
+
+- `/sell <spot|future> <symbol> <quantity> [market|limit] [price] [cross|isolated] [leverage]`
+  Shortcut cho lệnh bán thủ công
+
+- `/close <spot|future> <symbol> [quantity]`
+  Đóng vị thế đang mở bằng market sell
 
 - `/addsymbol BTC/USDT`
   Thêm symbol vào watchlist
@@ -94,6 +112,21 @@ Chatbot dùng để:
 - `live`: bot dùng CCXT adapter để gửi lệnh thật lên sàn đang chọn
 - Nếu `DRY_RUN=true`, bot vẫn dùng `PaperExchange` ngay cả khi chuyển sang `live`
 
+## Manual order notes
+
+- `spot` và `future` đều dùng chung command layer trên Telegram
+- Manual futures hiện hỗ trợ mở long và đóng vị thế, chưa hỗ trợ mở short thủ công
+- Nếu bạn đặt lệnh cho symbol chưa có trong watchlist, bot sẽ tự thêm symbol đó vào runtime config
+- Với futures live, bot sẽ tự chuẩn hóa `BTC/USDT` thành format unified của CCXT như `BTC/USDT:USDT`
+- Bạn có thể truyền `cross` hoặc `isolated` và leverage ngay trong command; nếu bỏ qua, bot dùng default từ `.env`
+- Lệnh mua hỗ trợ nhập notional theo USDT, ví dụ `100usdt`, bot sẽ tự quy đổi sang quantity theo giá hiện tại hoặc giá limit
+
+## Hành vi với dust positions
+
+- Nếu bot đang giữ một vị thế quá nhỏ để đóng theo rule `min_qty` của sàn, engine sẽ không tiếp tục cố `market sell` ở mọi vòng lặp
+- Bot sẽ ghi nhận và gửi một cảnh báo dạng `SKIP CLOSE ...` ở lần đầu tiên phát hiện
+- Các vòng sau cùng một quantity đó sẽ bị bỏ qua im lặng để tránh spam log, spam Telegram và làm nhiễu `last_error`
+
 ## `/status` gồm những gì
 
 Lệnh `/status` đang hiển thị:
@@ -134,3 +167,4 @@ Khi người dùng bấm lặp cùng một nút như `Resume` nhiều lần liê
 - Chatbot hiện chủ yếu phục vụ điều khiển vận hành, chưa hỗ trợ sửa sâu các tham số strategy từ chat
 - Dashboard web hiện là read-only, chưa có nút điều khiển từ giao diện web
 - `Close All` dùng exchange object hiện tại trong bộ nhớ ứng dụng; sau thao tác, trạng thái chi tiết sẽ được đồng bộ lại ở vòng engine kế tiếp
+- Telegram hiện chưa render chart trực tiếp trong chat; chart chỉ có trên dashboard web

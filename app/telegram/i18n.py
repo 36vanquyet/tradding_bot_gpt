@@ -15,17 +15,27 @@ MESSAGES = {
             "/status - Xem trạng thái bot, mode, exchange, ngôn ngữ, số dư và lệnh gần nhất\n"
             "/health - Kiểm tra heartbeat của engine\n"
             "/symbols - Xem danh sách symbol đang theo dõi\n"
+            "/positions - Xem danh sách vị thế đang mở\n"
+            "/orders - Xem danh sách lệnh chờ\n"
             "/exchange &lt;paper|binance|bybit|mexc&gt; - Đổi sàn giao dịch\n"
             "/language &lt;vi|en&gt; - Đổi ngôn ngữ chatbot\n"
             "/lang &lt;vi|en&gt; - Alias ngắn gọn của /language\n"
             "/resetconfig - Reset cấu hình runtime về mặc định\n"
+            "/order &lt;spot|future&gt; &lt;buy|sell&gt; BTC/USDT 0.01|100usdt [market|limit] [price] [cross|isolated] [leverage] - Đặt lệnh thủ công\n"
+            "/buy &lt;spot|future&gt; BTC/USDT 0.01|100usdt [market|limit] [price] [cross|isolated] [leverage] - Đặt lệnh mua thủ công\n"
+            "/sell &lt;spot|future&gt; BTC/USDT 0.01 [market|limit] [price] [cross|isolated] [leverage] - Đặt lệnh bán thủ công\n"
+            "/close &lt;spot|future&gt; BTC/USDT [quantity] - Đóng vị thế đang mở\n"
             "/addsymbol BTC/USDT - Thêm symbol vào danh sách theo dõi\n"
             "/remsymbol BTC/USDT - Xóa symbol khỏi danh sách theo dõi\n"
             "\n"
             "<b>Lưu ý</b>\n"
             "- Bot giữ lại cấu hình runtime hiện tại sau khi restart\n"
             "- Dùng /resetconfig để quay về cấu hình mặc định lấy từ file .env\n"
-            "- Khi DRY_RUN=true, bot vẫn dùng PaperExchange để mô phỏng"
+            "- Khi DRY_RUN=true, bot vẫn dùng PaperExchange để mô phỏng\n"
+            "- Future command hiện hỗ trợ mở long và close vị thế; chưa hỗ trợ mở short thủ công\n"
+            "- Future symbol dạng BTC/USDT sẽ được tự chuẩn hóa thành BTC/USDT:USDT\n"
+            "- Có thể thêm margin mode và leverage ở cuối lệnh, ví dụ: /buy future BTC/USDT 100usdt market isolated 10\n"
+            "- Lệnh mua hỗ trợ nhập notional theo USDT, ví dụ: 100usdt"
         ),
         "status_title": "Status",
         "status_running": "Đang chạy",
@@ -40,6 +50,8 @@ MESSAGES = {
         "status_last_signal": "Tín hiệu gần nhất",
         "status_last_trade": "Lệnh gần nhất",
         "status_last_error": "Lỗi gần nhất",
+        "positions_title": "Vị Thế Đang Mở",
+        "orders_title": "Lệnh Chờ",
         "none": "Không có",
         "health_age": "Độ trễ heartbeat: {age:.1f}s",
         "health_status": "Trạng thái engine: {status}",
@@ -47,6 +59,10 @@ MESSAGES = {
         "health_stale": "STALE",
         "symbols": "Symbols: {symbols}",
         "usage_exchange": "Cách dùng: /exchange <paper|binance|bybit|mexc>",
+        "usage_order": "Cách dùng: /order <spot|future> <buy|sell> BTC/USDT 0.01|100usdt [market|limit] [price] [cross|isolated] [leverage]",
+        "usage_buy": "Cách dùng: /buy <spot|future> BTC/USDT 0.01|100usdt [market|limit] [price] [cross|isolated] [leverage]",
+        "usage_sell": "Cách dùng: /sell <spot|future> BTC/USDT 0.01 [market|limit] [price] [cross|isolated] [leverage]",
+        "usage_close": "Cách dùng: /close <spot|future> BTC/USDT [quantity]",
         "usage_addsymbol": "Cách dùng: /addsymbol BTC/USDT",
         "usage_remsymbol": "Cách dùng: /remsymbol BTC/USDT",
         "usage_language": "Cách dùng: /language <vi|en> hoặc /lang <vi|en>",
@@ -88,17 +104,27 @@ MESSAGES = {
             "/status - Show bot status, mode, exchange, language, balance, and latest activity\n"
             "/health - Check the engine heartbeat\n"
             "/symbols - Show tracked symbols\n"
+            "/positions - Show open positions\n"
+            "/orders - Show pending orders\n"
             "/exchange &lt;paper|binance|bybit|mexc&gt; - Change exchange\n"
             "/language &lt;vi|en&gt; - Change chatbot language\n"
             "/lang &lt;vi|en&gt; - Short alias for /language\n"
             "/resetconfig - Reset runtime config to defaults\n"
+            "/order &lt;spot|future&gt; &lt;buy|sell&gt; BTC/USDT 0.01|100usdt [market|limit] [price] [cross|isolated] [leverage] - Place a manual order\n"
+            "/buy &lt;spot|future&gt; BTC/USDT 0.01|100usdt [market|limit] [price] [cross|isolated] [leverage] - Place a manual buy order\n"
+            "/sell &lt;spot|future&gt; BTC/USDT 0.01 [market|limit] [price] [cross|isolated] [leverage] - Place a manual sell order\n"
+            "/close &lt;spot|future&gt; BTC/USDT [quantity] - Close an open position\n"
             "/addsymbol BTC/USDT - Add a symbol to the watchlist\n"
             "/remsymbol BTC/USDT - Remove a symbol from the watchlist\n"
             "\n"
             "<b>Notes</b>\n"
             "- The bot keeps the current runtime config after restart\n"
             "- Use /resetconfig to restore defaults from .env\n"
-            "- When DRY_RUN=true, the bot still uses PaperExchange for simulation"
+            "- When DRY_RUN=true, the bot still uses PaperExchange for simulation\n"
+            "- Future commands currently support opening longs and closing positions, not opening manual shorts\n"
+            "- Future symbols like BTC/USDT are automatically normalized to BTC/USDT:USDT\n"
+            "- You can append margin mode and leverage, for example: /buy future BTC/USDT 100usdt market isolated 10\n"
+            "- Buy orders support quote notional in USDT, for example: 100usdt"
         ),
         "status_title": "Status",
         "status_running": "Running",
@@ -113,6 +139,8 @@ MESSAGES = {
         "status_last_signal": "Last Signal",
         "status_last_trade": "Last Trade",
         "status_last_error": "Last Error",
+        "positions_title": "Open Positions",
+        "orders_title": "Pending Orders",
         "none": "None",
         "health_age": "Heartbeat age: {age:.1f}s",
         "health_status": "Engine status: {status}",
@@ -120,6 +148,10 @@ MESSAGES = {
         "health_stale": "STALE",
         "symbols": "Symbols: {symbols}",
         "usage_exchange": "Usage: /exchange <paper|binance|bybit|mexc>",
+        "usage_order": "Usage: /order <spot|future> <buy|sell> BTC/USDT 0.01|100usdt [market|limit] [price] [cross|isolated] [leverage]",
+        "usage_buy": "Usage: /buy <spot|future> BTC/USDT 0.01|100usdt [market|limit] [price] [cross|isolated] [leverage]",
+        "usage_sell": "Usage: /sell <spot|future> BTC/USDT 0.01 [market|limit] [price] [cross|isolated] [leverage]",
+        "usage_close": "Usage: /close <spot|future> BTC/USDT [quantity]",
         "usage_addsymbol": "Usage: /addsymbol BTC/USDT",
         "usage_remsymbol": "Usage: /remsymbol BTC/USDT",
         "usage_language": "Usage: /language <vi|en> or /lang <vi|en>",

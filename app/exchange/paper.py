@@ -69,7 +69,7 @@ class PaperExchange(ExchangeAdapter):
         price = self.prices.get(symbol, 100.0)
         return [[i, price, price, price, price, 1.0] for i in range(limit)]
 
-    def fetch_balance_quote(self, quote: str = "USDT") -> float:
+    def fetch_balance_quote(self, quote: str = "USDT", market_kind: str = "spot") -> float:
         return self.balance_quote
 
     def fetch_symbol_rule(self, symbol: str) -> SymbolRule:
@@ -113,19 +113,19 @@ class PaperExchange(ExchangeAdapter):
             )
         return Trade(symbol=symbol, side="SELL", quantity=quantity, price=price, fee=fee, mode="paper", order_type=order_type)
 
-    def create_market_buy(self, symbol: str, quantity: float) -> Trade:
+    def create_market_buy(self, symbol: str, quantity: float, market_kind: str = "spot") -> Trade:
         return self._execute_buy(symbol, quantity, self.fetch_ticker_price(symbol), order_type="market")
 
-    def create_market_sell(self, symbol: str, quantity: float) -> Trade:
+    def create_market_sell(self, symbol: str, quantity: float, market_kind: str = "spot") -> Trade:
         return self._execute_sell(symbol, quantity, self.fetch_ticker_price(symbol), order_type="market")
 
-    def create_limit_buy(self, symbol: str, quantity: float, price: float) -> Order:
+    def create_limit_buy(self, symbol: str, quantity: float, price: float, market_kind: str = "spot") -> Order:
         order = Order(symbol=symbol, side="BUY", quantity=quantity, price=price, order_type="limit", status="open", order_id=self._next_order_id())
         self.open_orders[order.order_id] = order
         self._fill_limit_orders()
         return order
 
-    def create_limit_sell(self, symbol: str, quantity: float, price: float) -> Order:
+    def create_limit_sell(self, symbol: str, quantity: float, price: float, market_kind: str = "spot") -> Order:
         order = Order(symbol=symbol, side="SELL", quantity=quantity, price=price, order_type="limit", status="open", order_id=self._next_order_id())
         self.open_orders[order.order_id] = order
         self._fill_limit_orders()

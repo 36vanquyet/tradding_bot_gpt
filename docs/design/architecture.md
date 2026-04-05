@@ -130,6 +130,7 @@ Web --> Control
 - set heartbeat theo chu kỳ poll
 - sync state từ exchange vào `BotState`
 - bảo vệ vị thế bằng stop loss, take profit, trailing stop
+- suppress các lần thử close lặp lại cho dust positions nhỏ hơn mức tối thiểu của sàn
 - gọi strategy để sinh tín hiệu
 - gọi risk layer để tính size lệnh
 - gửi thông báo trade hoặc error qua notifier
@@ -152,12 +153,14 @@ Web --> Control
 - hỗ trợ command và inline keyboard
 - thay đổi runtime config thông qua `ControlService`
 - hot-swap exchange khi đổi mode hoặc đổi exchange
+- hỗ trợ manual order cho `spot/future`, gồm market, limit, close position, margin mode, leverage và quote-notional cho lệnh buy
 
 ### `Dashboard Layer`
 
-- phục vụ HTML page và `/api/status`
+- phục vụ HTML page, `/api/status` và `/api/chart`
 - đọc trực tiếp trạng thái hiện tại từ `ControlService`
 - refresh client-side mỗi 3 giây
+- render candlestick chart dark-theme bằng frontend chart library, có MA line, volume, chọn timeframe và `spot/future`
 
 ## Luồng dữ liệu cốt lõi
 

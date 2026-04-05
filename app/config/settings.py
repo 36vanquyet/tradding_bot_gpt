@@ -62,6 +62,8 @@ class Settings:
     limit_price_offset_pct: float
     api_retry_attempts: int
     api_retry_delay_seconds: float
+    future_margin_mode: str
+    future_leverage: float
     dashboard_enabled: bool
     dashboard_host: str
     dashboard_port: int
@@ -98,6 +100,8 @@ def load_settings() -> Settings:
         limit_price_offset_pct=float(os.getenv("LIMIT_PRICE_OFFSET_PCT", "0.001")),
         api_retry_attempts=int(os.getenv("API_RETRY_ATTEMPTS", "3")),
         api_retry_delay_seconds=float(os.getenv("API_RETRY_DELAY_SECONDS", "1.0")),
+        future_margin_mode=os.getenv("FUTURE_MARGIN_MODE", "cross").lower(),
+        future_leverage=float(os.getenv("FUTURE_LEVERAGE", "1")),
         dashboard_enabled=_get_bool("DASHBOARD_ENABLED", True),
         dashboard_host=os.getenv("DASHBOARD_HOST", "127.0.0.1"),
         dashboard_port=int(os.getenv("DASHBOARD_PORT", "8080")),

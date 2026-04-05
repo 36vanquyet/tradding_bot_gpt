@@ -33,6 +33,7 @@ class TradingEngine:
         self.risk = risk
         self.notifier = notifier or TelegramNotifier()
         self._stop = False
+        self._suppressed_min_close: dict[str, float] = {}
 
     def set_exchange(self, exchange: ExchangeAdapter) -> None:
         self.exchange = exchange
@@ -73,6 +74,47 @@ class TradingEngine:
     async def notify(self, message: str) -> None:
         await self.notifier.send(message)
 
+    @staticmethod
+    def _is_min_amount_error(exc: Exception) -> bool:
+        message = str(exc).lower()
+        return (
+            "must be greater than minimum amount precision" in message
+            or "must be greater than minimum amount" in message
+            or "minimum amount precision" in message
+        )
+
+    def _note_uncloseable_position(self, symbol: str, quantity: float, min_qty: float | None = None, detail: str | None = None) -> str | None:
+        previous = self._suppressed_min_close.get(symbol)
+        if previous is not None and abs(previous - quantity) < 1e-12:
+            return None
+        self._suppressed_min_close[symbol] = quantity
+        if min_qty is not None:
+            return f"SKIP CLOSE {symbol} qty={quantity:.6f} below min_qty={min_qty:.6f}"
+        return f"SKIP CLOSE {symbol} qty={quantity:.6f} {detail or 'below exchange minimum amount'}"
+
+    def _clear_uncloseable_marker(self, symbol: str, quantity: float, min_qty: float | None = None) -> None:
+        if min_qty is not None and quantity < min_qty:
+            return
+        self._suppressed_min_close.pop(symbol, None)
+
+    def _try_close_position(self, symbol: str, pos: Position) -> tuple[object | None, str | None]:
+        min_qty: float | None = None
+        try:
+            rule = self.exchange.fetch_symbol_rule(symbol)
+            min_qty = rule.min_qty
+        except Exception:
+            rule = None
+        if rule is not None and pos.quantity < rule.min_qty:
+            return None, self._note_uncloseable_position(symbol, pos.quantity, min_qty=rule.min_qty)
+        try:
+            trade = self.exchange.create_market_sell(symbol, pos.quantity)
+        except Exception as exc:
+            if self._is_min_amount_error(exc):
+                return None, self._note_uncloseable_position(symbol, pos.quantity, detail=str(exc))
+            raise
+        self._clear_uncloseable_marker(symbol, pos.quantity, min_qty=min_qty)
+        return trade, None
+
     def _apply_trailing_stop(self, pos: Position, current_price: float) -> bool:
         trailing_pct = pos.trailing_stop_pct or self.settings.trailing_stop_pct
         updated = False
@@ -100,12 +142,22 @@ class TradingEngine:
             if self._apply_trailing_stop(pos, current_price):
                 changed = True
             if pos.stop_loss is not None and current_price <= pos.stop_loss:
-                trade = self.exchange.create_market_sell(symbol, pos.quantity)
+                trade, skipped = self._try_close_position(symbol, pos)
+                if skipped:
+                    alerts.append(skipped)
+                    continue
+                if trade is None:
+                    continue
                 pnl = (trade.price - pos.entry_price) * pos.quantity - trade.fee
                 self.control.state.daily_pnl += pnl
                 alerts.append(f"STOP LOSS {symbol} qty={trade.quantity:.6f} @ {trade.price:.2f} pnl={pnl:.2f}")
             elif pos.take_profit is not None and current_price >= pos.take_profit:
-                trade = self.exchange.create_market_sell(symbol, pos.quantity)
+                trade, skipped = self._try_close_position(symbol, pos)
+                if skipped:
+                    alerts.append(skipped)
+                    continue
+                if trade is None:
+                    continue
                 pnl = (trade.price - pos.entry_price) * pos.quantity - trade.fee
                 self.control.state.daily_pnl += pnl
                 alerts.append(f"TAKE PROFIT {symbol} qty={trade.quantity:.6f} @ {trade.price:.2f} pnl={pnl:.2f}")
@@ -165,7 +217,13 @@ class TradingEngine:
                         await self._place_entry(symbol, quantity, price)
                 elif signal == "SELL" and symbol in self.control.state.open_positions:
                     pos = self.control.state.open_positions[symbol]
-                    trade = self.exchange.create_market_sell(symbol, pos.quantity)
+                    trade, skipped = self._try_close_position(symbol, pos)
+                    if skipped:
+                        self.control.state.last_trade = skipped
+                        await self.notify(skipped)
+                        continue
+                    if trade is None:
+                        continue
                     pnl = (trade.price - pos.entry_price) * pos.quantity - trade.fee
                     self.control.state.daily_pnl += pnl
                     self.control.state.last_trade = f"SELL {trade.symbol} qty={trade.quantity:.6f} @ {trade.price:.2f} pnl={pnl:.2f}"

@@ -9,6 +9,12 @@ Bộ tài liệu này mô tả thiết kế hiện tại của Trading Bot V5 th
 - [sequences.md](sequences.md): các sequence diagram quan trọng của hệ thống
 - [timing-and-state.md](timing-and-state.md): chu kỳ polling, heartbeat, persistence và đồng bộ state
 
+Hiện trạng đáng chú ý:
+
+- Telegram layer đã hỗ trợ manual order cho `spot` và `future`, gồm `market`, `limit`, `cross|isolated`, leverage và quote-notional như `100usdt`
+- Dashboard layer đã có chart nến dark-theme với chọn `spot/future`, timeframe tới `1w`, MA line và volume
+- Engine có cơ chế suppress lặp lại cho dust positions không thể đóng do nhỏ hơn `min_qty` của sàn
+
 ## Phạm vi
 
 Các tài liệu trong thư mục này bám theo implementation hiện tại ở các module:
