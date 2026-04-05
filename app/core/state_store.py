@@ -1,16 +1,12 @@
 from __future__ import annotations
 
 import json
-import logging
 import sqlite3
 import threading
 from pathlib import Path
 from typing import Any, Dict
 
 from app.core.models import BotState, Order, Position
-
-
-logger = logging.getLogger(__name__)
 
 
 class SQLiteStateStore:
@@ -67,14 +63,6 @@ class SQLiteStateStore:
         conn = self._connect()
         with self._lock:
             self._write_entries(conn, self._serialize_state(state))
-            logger.debug(
-                "Full state persisted to %s mode=%s exchange=%s language=%s symbols=%s",
-                self.db_path,
-                state.mode,
-                state.exchange,
-                state.language,
-                state.symbols,
-            )
 
     def save_runtime_config(self, state: BotState) -> None:
         conn = self._connect()
@@ -82,14 +70,6 @@ class SQLiteStateStore:
             data = self._serialize_state(state)
             runtime = {key: value for key, value in data.items() if key in self.RUNTIME_KEYS}
             self._write_entries(conn, runtime, table="runtime_config")
-            logger.debug(
-                "Runtime config persisted to %s mode=%s exchange=%s language=%s symbols=%s",
-                self.db_path,
-                state.mode,
-                state.exchange,
-                state.language,
-                state.symbols,
-            )
 
     def save_engine_state(self, state: BotState) -> None:
         conn = self._connect()
@@ -97,12 +77,6 @@ class SQLiteStateStore:
             data = self._serialize_state(state)
             engine_state = {key: value for key, value in data.items() if key not in self.RUNTIME_KEYS}
             self._write_entries(conn, engine_state)
-            logger.debug(
-                "Engine state persisted to %s balance=%s daily_pnl=%s",
-                self.db_path,
-                state.balance_quote,
-                state.daily_pnl,
-            )
 
     def _write_entries(self, conn: sqlite3.Connection, data: Dict[str, Any], table: str = "bot_state") -> None:
         for key, value in data.items():
@@ -163,7 +137,6 @@ class SQLiteStateStore:
             rows = conn.execute("SELECT key, value FROM bot_state").fetchall()
             runtime_rows = conn.execute("SELECT key, value FROM runtime_config").fetchall()
         if not rows:
-            logger.info("No saved state found in %s. Using defaults.", self.db_path)
             return default
         raw: Dict[str, Any] = {key: json.loads(value) for key, value in rows}
         runtime_raw: Dict[str, Any] = {key: json.loads(value) for key, value in runtime_rows}
@@ -192,13 +165,5 @@ class SQLiteStateStore:
             heartbeat_ts=raw.get("heartbeat_ts", default.heartbeat_ts),
             last_error=raw.get("last_error", default.last_error),
             allowed_exchanges=raw.get("allowed_exchanges", default.allowed_exchanges),
-        )
-        logger.info(
-            "Loaded state from %s mode=%s exchange=%s language=%s symbols=%s",
-            self.db_path,
-            state.mode,
-            state.exchange,
-            state.language,
-            state.symbols,
         )
         return state

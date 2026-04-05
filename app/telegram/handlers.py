@@ -1,6 +1,4 @@
 from __future__ import annotations
-
-import logging
 import time
 
 from telegram import Update
@@ -11,9 +9,6 @@ from telegram.ext import ContextTypes
 from app.exchange.factory import build_exchange
 from app.telegram.i18n import normalize_language, t
 from app.telegram.keyboards import main_keyboard
-
-
-logger = logging.getLogger(__name__)
 
 
 def _is_authorized(update: Update, allowed_user_ids: set[int]) -> bool:
@@ -166,13 +161,6 @@ async def exchange_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     engine.set_exchange(exchange)
     control.set_exchange(requested)
     context.application.bot_data["exchange"] = exchange
-    logger.info(
-        "Exchange changed via Telegram %s -> %s (db=%s, mode=%s)",
-        previous,
-        control.state.exchange,
-        control.store.db_path,
-        control.state.mode,
-    )
     await update.effective_message.reply_text(t(language, "exchange_changed", exchange=requested), reply_markup=main_keyboard(language))
 
 
